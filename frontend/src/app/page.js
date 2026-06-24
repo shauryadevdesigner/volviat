@@ -25,7 +25,7 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'create' | 'logs'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'create' | 'logs' | 'analytics' | 'leaderboard' | 'tickets' | 'challenges' | 'memories'
   const [servers, setServers] = useState([]);
   const [selectedServerId, setSelectedServerId] = useState('');
   const [channels, setChannels] = useState([]);
@@ -34,6 +34,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
+  
+  // Dashboard Addon States
+  const [analyticsData, setAnalyticsData] = useState([]);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [ticketsData, setTicketsData] = useState([]);
+  const [challengesData, setChallengesData] = useState([]);
+  const [memoriesData, setMemoriesData] = useState([]);
   
   // Form State
   const [editingId, setEditingId] = useState(null);
@@ -51,14 +58,36 @@ export default function Home() {
     fetchInitialData();
   }, []);
 
-  // Fetch channels when selected server changes
+  // Fetch channels and addon data when selected server changes or tab changes
   useEffect(() => {
     if (selectedServerId) {
       fetchChannels(selectedServerId);
+      fetchDashboardAddons(selectedServerId);
     } else {
       setChannels([]);
     }
-  }, [selectedServerId]);
+  }, [selectedServerId, activeTab]);
+
+  const fetchDashboardAddons = async (guildId) => {
+    try {
+      const [an, ld, tk, ch, mm] = await Promise.all([
+        fetch(`${API_BASE}/analytics/${guildId}`).then(r => r.json()).catch(() => []),
+        fetch(`${API_BASE}/leaderboard/${guildId}`).then(r => r.json()).catch(() => []),
+        fetch(`${API_BASE}/tickets/${guildId}`).then(r => r.json()).catch(() => []),
+        fetch(`${API_BASE}/challenges/${guildId}`).then(r => r.json()).catch(() => []),
+        fetch(`${API_BASE}/memories/${guildId}`).then(r => r.json()).catch(() => [])
+      ]);
+      setAnalyticsData(an);
+      setLeaderboardData(ld);
+      setTicketsData(tk);
+      setChallengesData(ch);
+      setMemoriesData(mm);
+    } catch (err) {
+      console.error("Failed to fetch dashboard addons:", err);
+    }
+  };
+
+
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -331,6 +360,56 @@ export default function Home() {
             >
               <FileText size={13} />
               Audit Logs
+            </button>
+            <button 
+              onClick={() => { setActiveTab('analytics'); }}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'analytics' 
+                  ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865f2]/20' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Analytics
+            </button>
+            <button 
+              onClick={() => { setActiveTab('leaderboard'); }}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'leaderboard' 
+                  ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865f2]/20' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Leaderboard
+            </button>
+            <button 
+              onClick={() => { setActiveTab('tickets'); }}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'tickets' 
+                  ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865f2]/20' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Tickets
+            </button>
+            <button 
+              onClick={() => { setActiveTab('challenges'); }}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'challenges' 
+                  ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865f2]/20' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Challenges
+            </button>
+            <button 
+              onClick={() => { setActiveTab('memories'); }}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'memories' 
+                  ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865f2]/20' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              AI Memory
             </button>
           </div>
           <button 
@@ -866,6 +945,265 @@ export default function Home() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: ANALYTICS */}
+            {activeTab === 'analytics' && (
+              <div className="glass-panel p-6 md:p-8 flex flex-col gap-6">
+                <div>
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Community Engagement Analytics</h2>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">Daily metrics tracked automatically by Jarvis</p>
+                </div>
+
+                {analyticsData.length === 0 ? (
+                  <div className="text-center py-20 text-gray-500 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
+                    📊 No analytics records compiled yet. Jarvis compiles reports daily at 11:59 PM.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Graph Metric Column */}
+                    <div className="md:col-span-2 glass-panel p-6">
+                      <h3 className="font-bold text-sm text-white mb-4">Message Volume Trend (Last 7 Days)</h3>
+                      <div className="h-48 flex items-end gap-3 pt-6 border-b border-white/10 px-2">
+                        {analyticsData.slice(0, 7).reverse().map((data, idx) => {
+                          const maxVal = Math.max(...analyticsData.map(d => d.messageCount), 10);
+                          const barHeight = (data.messageCount / maxVal) * 100;
+                          return (
+                            <div key={data.id || idx} className="flex-1 flex flex-col items-center gap-2 group">
+                              <span className="text-[10px] font-mono text-purple-400 opacity-0 group-hover:opacity-100 transition-all select-none">
+                                {data.messageCount}
+                              </span>
+                              <div 
+                                style={{ height: `${Math.max(barHeight, 5)}%` }} 
+                                className="w-full bg-[#5865F2] hover:bg-cyan-400 transition-all rounded-t-lg shadow-lg shadow-[#5865f2]/10"
+                              />
+                              <span className="text-[9px] text-gray-500 font-bold whitespace-nowrap overflow-hidden">
+                                {new Date(data.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Stats List */}
+                    <div className="glass-panel p-6 flex flex-col gap-5 justify-between">
+                      <div>
+                        <h3 className="font-bold text-sm text-white mb-4">Quick Insights</h3>
+                        <div className="flex flex-col gap-4 text-xs font-semibold">
+                          <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Top Active Channel</span>
+                            <span className="text-cyan-400 font-mono">{analyticsData[0]?.topChannel || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Active Users Today</span>
+                            <span className="text-emerald-400">{analyticsData[0]?.activeUsers || 0} creators</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Message Volume Today</span>
+                            <span className="text-purple-400">{analyticsData[0]?.messageCount || 0} messages</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-gray-500 italic leading-relaxed">
+                        *Sir, I compile these records automatically from the database. Analytics data refreshes at midnight daily.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: LEADERBOARD */}
+            {activeTab === 'leaderboard' && (
+              <div className="glass-panel p-6 md:p-8">
+                <div className="mb-6">
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Active Creator Leaderboard</h2>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">Rankings of server members based on levels and message XP</p>
+                </div>
+
+                {leaderboardData.length === 0 ? (
+                  <div className="text-center py-20 text-gray-500">
+                    🏆 No member levels logged in the database yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-white/5 text-gray-400 text-xs font-bold uppercase tracking-wider">
+                          <th className="pb-4 pl-3">Rank</th>
+                          <th className="pb-4">Member Name</th>
+                          <th className="pb-4">Level</th>
+                          <th className="pb-4">Total XP</th>
+                          <th className="pb-4 pr-3">Last Active</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaderboardData.map((user, idx) => (
+                          <tr key={user.id} className="border-b border-white/[0.02] hover:bg-white/[0.01]">
+                            <td className="py-4 pl-3 font-mono font-bold text-gray-400">
+                              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                            </td>
+                            <td className="py-4 font-bold text-white">
+                              {user.username}
+                            </td>
+                            <td className="py-4 text-emerald-400 font-bold">
+                              ✨ Level {user.level}
+                            </td>
+                            <td className="py-4 text-purple-300 font-semibold font-mono">
+                              ⭐ {user.xp} XP
+                            </td>
+                            <td className="py-4 pr-3 text-xs text-gray-400">
+                              {new Date(user.lastActive).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: TICKETS */}
+            {activeTab === 'tickets' && (
+              <div className="glass-panel p-6 md:p-8">
+                <div className="mb-6">
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Support Tickets</h2>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">Audit records of private customer support sessions and AI summaries</p>
+                </div>
+
+                {ticketsData.length === 0 ? (
+                  <div className="text-center py-20 text-gray-500">
+                    🎟️ No support tickets found.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-white/5 text-gray-400 text-xs font-bold uppercase tracking-wider">
+                          <th className="pb-4 pl-3">Ticket Channel</th>
+                          <th className="pb-4">Opened By</th>
+                          <th className="pb-4">Status</th>
+                          <th className="pb-4">Created Date</th>
+                          <th className="pb-4 pr-3">AI Case Summary</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ticketsData.map((t) => (
+                          <tr key={t.id} className="border-b border-white/[0.02] hover:bg-white/[0.01]">
+                            <td className="py-4 pl-3 font-mono text-purple-300">
+                              #{t.ticketId.substring(0, 10)}...
+                            </td>
+                            <td className="py-4 font-bold text-white">
+                              {t.user?.username || 'Unknown'}
+                            </td>
+                            <td className="py-4">
+                              <span className={`badge ${t.status === 'OPEN' ? 'badge-success' : 'badge-failed'} py-0.5 px-2 text-[9px] font-bold`}>
+                                {t.status}
+                              </span>
+                            </td>
+                            <td className="py-4 text-xs text-gray-400">
+                              {new Date(t.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-4 pr-3 text-xs font-sans max-w-md overflow-hidden text-ellipsis leading-relaxed text-gray-300">
+                              {t.aiSummary ? renderMarkdown(t.aiSummary) : 'No summary generated.'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: CHALLENGES */}
+            {activeTab === 'challenges' && (
+              <div className="glass-panel p-6 md:p-8 flex flex-col gap-6">
+                <div>
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Server Challenges</h2>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">Creator sprints and active community contest submissions</p>
+                </div>
+
+                {challengesData.length === 0 ? (
+                  <div className="text-center py-20 text-gray-500">
+                    🏆 No challenges run yet. Generate one in Discord using `/challenge admin-generate`!
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-6">
+                    {challengesData.map((ch) => (
+                      <div key={ch.id} className="glass-panel p-6 border-l-[3px] border-l-[#5865F2]">
+                        <div className="flex justify-between items-start flex-wrap gap-4 border-b border-white/5 pb-4 mb-4">
+                          <div>
+                            <span className="badge bg-[#ffa502]/10 text-[#ffa502] border border-[#ffa502]/20 mb-2 inline-block text-[9px] font-bold uppercase tracking-wider">{ch.category} Challenge</span>
+                            <h3 className="text-base font-extrabold text-white">{ch.title}</h3>
+                            <p className="text-xs text-gray-400 mt-1">{ch.description}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs font-bold text-emerald-400">⭐ +{ch.xpReward} XP Reward</div>
+                            <div className="text-[10px] text-gray-500 mt-1 font-semibold">Ends: {new Date(ch.endDate).toLocaleDateString()}</div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-bold text-white mb-3">User Submissions ({ch.submissions.length})</h4>
+                          {ch.submissions.length === 0 ? (
+                            <p className="text-[11px] text-gray-500 italic">No entries submitted yet.</p>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {ch.submissions.map((sub) => (
+                                <div key={sub.id} className="bg-white/[0.01] border border-white/[0.03] rounded-xl p-3.5 text-xs flex flex-col gap-2">
+                                  <div className="flex justify-between font-bold text-white">
+                                    <span>👤 {sub.user?.username || 'Unknown'}</span>
+                                    <span className="text-cyan-400">🗳️ {sub.votes} votes</span>
+                                  </div>
+                                  <p className="text-gray-300 font-mono text-[10px] break-all bg-black/20 p-2 rounded">{sub.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: MEMORIES */}
+            {activeTab === 'memories' && (
+              <div className="glass-panel p-6 md:p-8">
+                <div className="mb-6">
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Jarvis AI Memory Blocks</h2>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">Semantic RAG memories persisted automatically from community conversations</p>
+                </div>
+
+                {memoriesData.length === 0 ? (
+                  <div className="text-center py-20 text-gray-500">
+                    🧠 Jarvis has not stored any user preferences or project facts in memory yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {memoriesData.map((mem) => (
+                      <div key={mem.id} className="bg-white/[0.01] border border-white/[0.03] rounded-xl p-4 flex items-start gap-3.5 hover:bg-white/[0.02] transition-all">
+                        <div className="bg-[#5865F2]/10 p-2.5 rounded-lg text-[#5865F2] flex items-center justify-center shrink-0">
+                          <Layers size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="badge badge-active text-[8px] tracking-wider py-0.5 px-2 font-bold uppercase">{mem.key}</span>
+                            <span className="text-[10px] text-gray-500 font-semibold">{new Date(mem.timestamp).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-gray-300 text-xs font-semibold mt-2.5 italic">
+                            "{mem.value}"
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

@@ -55,3 +55,80 @@ model Log {
   timestamp  DateTime @default(now())
   schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 }
+
+model User {
+  id           String       @id @default(uuid())
+  discordId    String       @unique
+  username     String
+  xp           Int          @default(0)
+  level        Int          @default(1)
+  dailyStreak  Int          @default(0)
+  lastActive   DateTime     @default(now())
+  guildId      String       // Guild they belong to
+  createdAt    DateTime     @default(now())
+  submissions  Submission[]
+  warnings     Warning[]    @relation("UserWarnings")
+  tickets      Ticket[]     @relation("UserTickets")
+}
+
+model Warning {
+  id          String   @id @default(uuid())
+  userId      String
+  guildId     String
+  reason      String
+  points      Int      @default(1)
+  moderatorId String
+  timestamp   DateTime @default(now())
+  user        User     @relation("UserWarnings", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id        String   @id @default(uuid())
+  ticketId  String   @unique // Channel ID of the ticket
+  userId    String
+  guildId   String
+  status    String   @default("OPEN") // "OPEN", "CLOSED"
+  aiSummary String?  // AI's first-response summary or close summary
+  createdAt DateTime @default(now())
+  user      User     @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Challenge {
+  id             String       @id @default(uuid())
+  title          String
+  category       String       // "Startup", "Design", "AI", "Coding", "Marketing", "Motion Graphics"
+  description    String
+  xpReward       Int          @default(100)
+  startDate      DateTime     @default(now())
+  endDate        DateTime
+  submissions    Submission[]
+}
+
+model Submission {
+  id          String    @id @default(uuid())
+  challengeId String
+  userId      String
+  content     String    // Link or text submission
+  votes       Int       @default(0)
+  timestamp   DateTime  @default(now())
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Analytic {
+  id           String   @id @default(uuid())
+  guildId      String
+  date         DateTime @default(now())
+  activeUsers  Int      @default(0)
+  messageCount Int      @default(0)
+  topChannel   String?
+}
+
+model Memory {
+  id        String   @id @default(uuid())
+  userId    String?  // Can be null for server-wide memories
+  guildId   String
+  key       String   // e.g. "project_info", "user_preference"
+  value     String   // The text memory (e.g. "Shaurya is building Volviq AI")
+  timestamp DateTime @default(now())
+}

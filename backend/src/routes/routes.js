@@ -384,4 +384,72 @@ router.post('/setup-server', asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Server layout setup completed successfully' });
 }));
 
+// 11. Get Analytics for a guild
+router.get('/analytics/:guildId', asyncHandler(async (req, res) => {
+  const { guildId } = req.params;
+  const analytics = await prisma.analytic.findMany({
+    where: { guildId },
+    orderBy: { date: 'desc' },
+    take: 30
+  });
+  res.json(analytics);
+}));
+
+// 12. Get Leaderboard for a guild
+router.get('/leaderboard/:guildId', asyncHandler(async (req, res) => {
+  const { guildId } = req.params;
+  const users = await prisma.user.findMany({
+    where: { guildId },
+    orderBy: { xp: 'desc' },
+    take: 50
+  });
+  res.json(users);
+}));
+
+// 13. Get Tickets for a guild
+router.get('/tickets/:guildId', asyncHandler(async (req, res) => {
+  const { guildId } = req.params;
+  const tickets = await prisma.ticket.findMany({
+    where: { guildId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: { username: true }
+      }
+    }
+  });
+  res.json(tickets);
+}));
+
+// 14. Get Challenges for a guild
+router.get('/challenges/:guildId', asyncHandler(async (req, res) => {
+  const { guildId } = req.params;
+  // Challenges are global, but we can query them with their submissions
+  const challenges = await prisma.challenge.findMany({
+    orderBy: { startDate: 'desc' },
+    include: {
+      submissions: {
+        include: {
+          user: {
+            select: { username: true }
+          }
+        }
+      }
+    },
+    take: 10
+  });
+  res.json(challenges);
+}));
+
+// 15. Get Memories for a guild
+router.get('/memories/:guildId', asyncHandler(async (req, res) => {
+  const { guildId } = req.params;
+  const memories = await prisma.memory.findMany({
+    where: { guildId },
+    orderBy: { timestamp: 'desc' }
+  });
+  res.json(memories);
+}));
+
 module.exports = router;
+
