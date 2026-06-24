@@ -20,6 +20,37 @@ Personality Guidelines:
 `;
 
 /**
+ * Executes a function using gemini-1.5-flash first, and falls back to gemini-pro or gemini-1.5-pro if 404/not supported is encountered.
+ * @param {Function} apiFn The generative AI function to execute, receives (modelName)
+ */
+async function callWithFallback(apiFn) {
+  try {
+    return await apiFn('gemini-1.5-flash');
+  } catch (error) {
+    const isModelError = error.message.includes('404') || 
+                         error.message.toLowerCase().includes('not found') || 
+                         error.message.toLowerCase().includes('not supported') ||
+                         error.message.toLowerCase().includes('invalid model');
+                         
+    if (isModelError) {
+      console.warn(`[AI Service] gemini-1.5-flash failed/unsupported. Falling back to gemini-pro:`, error.message);
+      try {
+        return await apiFn('gemini-pro');
+      } catch (fallbackError) {
+        console.warn(`[AI Service] gemini-pro failed. Falling back to gemini-1.5-pro:`, fallbackError.message);
+        try {
+          return await apiFn('gemini-1.5-pro');
+        } catch (proError) {
+          console.error(`[AI Service] All fallback options exhausted:`, proError.message);
+          throw proError;
+        }
+      }
+    }
+    throw error;
+  }
+}
+
+/**
  * Generates chat response using Jarvis persona
  * @param {string} prompt 
  * @param {Array} history Array of { role: 'user'|'model', parts: [{ text: string }] }
@@ -29,9 +60,9 @@ async function generateChatResponse(prompt, history = []) {
     return `*Static crackle...* "Apologies, sir. My cognitive matrix (GEMINI_API_KEY) appears to be offline. Please configure it in my systems."\n\n*Simulated Jarvis:* "However, if I were online, I would tell you that your query regarding: '${prompt}' is highly fascinating."`;
   }
 
-  try {
+  const runWithModel = async (modelName) => {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: modelName,
       systemInstruction: JARVIS_SYSTEM_INSTRUCTION,
     });
 
@@ -45,6 +76,10 @@ async function generateChatResponse(prompt, history = []) {
     const result = await chat.sendMessage(prompt);
     const response = await result.response;
     return response.text();
+  };
+
+  try {
+    return await callWithFallback(runWithModel);
   } catch (error) {
     console.error('[AI Service] Error generating chat response:', error);
     return `*Static crackle...* "It seems there was a minor power surge in my core processor, sir. Details: ${error.message}"`;
@@ -60,8 +95,8 @@ async function generateSummary(chatText) {
     return `*Simulated Channel Summary:* The community has been highly active discussing startup ideas, RAG architectures, and Vercel hosting. Overall vibe is collaborative and energetic!`;
   }
 
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const runWithModel = async (modelName) => {
+    const model = genAI.getGenerativeModel({ model: modelName });
     const prompt = `Summarize the following Discord channel chat log. Provide:
 1. A concise overview of the main topics discussed.
 2. Key takeaways or conclusions.
@@ -74,6 +109,10 @@ ${chatText}`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
+  };
+
+  try {
+    return await callWithFallback(runWithModel);
   } catch (error) {
     console.error('[AI Service] Error generating summary:', error);
     return `Failed to compile the summary logs, sir. Reason: ${error.message}`;
@@ -89,15 +128,19 @@ async function explainTopic(topic) {
     return `*Simulated explanation of ${topic}:* It refers to a highly optimized workflow in modern engineering that increases efficiency and reduces server latency!`;
   }
 
-  try {
+  const runWithModel = async (modelName) => {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: modelName,
       systemInstruction: JARVIS_SYSTEM_INSTRUCTION
     });
     const prompt = `Explain the following concept or query to the community in a clear, engaging, and easy-to-understand way. Use code snippets or diagrams if helpful. Topic: ${topic}`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
+  };
+
+  try {
+    return await callWithFallback(runWithModel);
   } catch (error) {
     console.error('[AI Service] Error explaining topic:', error);
     return `I am unable to access my databases to explain this, sir. ${error.message}`;
@@ -110,7 +153,6 @@ async function explainTopic(topic) {
  */
 async function generateChallenge(category) {
   if (!genAI) {
-    // Return standard fallback challenge
     return {
       title: `${category} Challenge: Build a mock UI`,
       description: `Design a high-fidelity landing page hero section in 60 minutes. Focus on glassmorphism and clean typography!`,
@@ -118,8 +160,8 @@ async function generateChallenge(category) {
     };
   }
 
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const runWithModel = async (modelName) => {
+    const model = genAI.getGenerativeModel({ model: modelName });
     const prompt = `Create a creative, specific, and engaging daily challenge for a Discord community. 
 Category: ${category}
 The challenge should be actionable, taking between 30 to 120 minutes to complete. 
@@ -133,9 +175,12 @@ DO NOT wrap the response in markdown code blocks. Output raw JSON.`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const jsonText = response.text().trim();
-    // Clean JSON wraps if model added them
     const cleanJson = jsonText.replace(/^```json/, '').replace(/```$/, '').trim();
     return JSON.parse(cleanJson);
+  };
+
+  try {
+    return await callWithFallback(runWithModel);
   } catch (error) {
     console.error('[AI Service] Error generating challenge:', error);
     return {
