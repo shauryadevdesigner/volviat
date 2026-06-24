@@ -1,0 +1,57 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Server {
+  id        String   @id @default(uuid())
+  guildId   String   @unique
+  name      String
+  ownerId   String?
+  createdAt DateTime @default(now())
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  guildId   String
+  channelId String   @unique
+  name      String
+  type      String?  // e.g. TEXT
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  channelId String
+  createdAt DateTime @default(now())
+}
+
+model Schedule {
+  id              String   @id @default(uuid())
+  name            String   @default("Scheduled Broadcast")
+  type            String   // "cron" or "interval"
+  cronExpression  String?  // e.g. "0 9 * * *"
+  intervalMinutes Int?     // e.g. 60 (for interval schedules)
+  channelId       String   // Target channel ID
+  guildId         String   // Target guild ID
+  messageContent  String   // Markdown message to send
+  status          String   // "ACTIVE" or "PAUSED"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  logs            Log[]
+}
+
+model Log {
+  id         String   @id @default(uuid())
+  scheduleId String
+  status     String   // "SUCCESS" or "FAILED"
+  error      String?  // error message if failed
+  timestamp  DateTime @default(now())
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+}
