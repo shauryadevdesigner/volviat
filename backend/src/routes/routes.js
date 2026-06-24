@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../db');
 const scheduler = require('../scheduler/scheduler');
-const { syncGuildsAndChannels } = require('../bot/bot');
+const { syncGuildsAndChannels, client } = require('../bot/bot');
 
 // Helper to handle async route errors
 const asyncHandler = (fn) => (req, res, next) => {
@@ -180,6 +180,208 @@ router.get('/logs', asyncHandler(async (req, res) => {
     take: 50
   });
   res.json(logs);
+}));
+
+// 10. Auto setup a beautiful server layout
+router.post('/setup-server', asyncHandler(async (req, res) => {
+  const { guildId } = req.body;
+  if (!guildId) {
+    return res.status(400).json({ error: 'Guild ID is required' });
+  }
+
+  const guild = await client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    return res.status(404).json({ error: 'Bot is not in this server or server is inaccessible.' });
+  }
+
+  console.log(`[Setup Server] Commencing server setup for Guild: ${guild.name} (${guild.id})`);
+
+  // Delete all existing channels to make a completely fresh server
+  const existingChannels = await guild.channels.fetch();
+  for (const [id, channel] of existingChannels) {
+    if (channel) {
+      await channel.delete().catch(err => console.log(`[Setup Server] Error deleting channel: ${err.message}`));
+    }
+  }
+
+  // Create roles
+  const rolesToCreate = [
+    { name: '👑 Founder', color: '#ff4757' },
+    { name: '🚀 Co-Founder', color: '#ff6b81' },
+    { name: '🧠 Core Team', color: '#ffa502' },
+    { name: '🌟 Creator', color: '#2ed573' },
+    { name: '🎬 YouTuber', color: '#ff4757' },
+    { name: '🎙️ Podcaster', color: '#1e90ff' },
+    { name: '✍️ Writer', color: '#70a1ff' },
+    { name: '🎨 Designer', color: '#eccc68' },
+    { name: '💻 Developer', color: '#747d8c' },
+    { name: '💎 Premium', color: '#f1c40f' },
+    { name: '🧪 Beta Tester', color: '#2ecc71' },
+    { name: '🛰️ Early Access', color: '#3498db' },
+    { name: '🏆 Top Creator', color: '#9b59b6' },
+    { name: '🔥 Community Star', color: '#e67e22' },
+    { name: '❤️ OG Member', color: '#1abc9c' }
+  ];
+  for (const r of rolesToCreate) {
+    const exists = guild.roles.cache.find(role => role.name === r.name);
+    if (!exists) {
+      await guild.roles.create({
+        name: r.name,
+        color: r.color,
+        reason: 'Antigravity AI server setup'
+      }).catch(err => console.log(`[Setup Server] Error creating role ${r.name}: ${err.message}`));
+    }
+  }
+
+  // Categories and channels structure
+  const categories = [
+    {
+      name: '🌌 INFORMATION',
+      channels: [
+        { name: '📌│start-here', type: 0 },
+        { name: '👋│welcome', type: 0 },
+        { name: '📋│rules', type: 0 },
+        { name: '📢│announcements', type: 0 },
+        { name: '🗺️│roadmap', type: 0 },
+        { name: '🔄│changelog', type: 0 },
+        { name: '❓│faq', type: 0 }
+      ]
+    },
+    {
+      name: '🚀 ONBOARDING',
+      channels: [
+        { name: '✨│get-started', type: 0 },
+        { name: '🙋│introduce-yourself', type: 0 },
+        { name: '🎭│choose-roles', type: 0 },
+        { name: '✅│verify', type: 0 },
+        { name: '🎯│creator-goals', type: 0 }
+      ]
+    },
+    {
+      name: '🌍 COMMUNITY HUB',
+      channels: [
+        { name: '💬│general-chat', type: 0 },
+        { name: '🎲│random', type: 0 },
+        { name: '🐸│memes', type: 0 },
+        { name: '💻│show-your-setup', type: 0 },
+        { name: '🏆│wins-and-milestones', type: 0 },
+        { name: '🍹│creator-lounge', type: 0 },
+        { name: '🔊│General VC', type: 2 },
+        { name: '🎙️│Creator Hangout', type: 2 }
+      ]
+    },
+    {
+      name: '🎬 CREATOR ZONE',
+      channels: [
+        { name: '📝│share-your-work', type: 0 },
+        { name: '💬│feedback-zone', type: 0 },
+        { name: '✨│creator-showcase', type: 0 },
+        { name: '💡│content-ideas', type: 0 },
+        { name: '🖼️│thumbnail-reviews', type: 0 },
+        { name: '✂️│editing-tips', type: 0 },
+        { name: '🎥│Co-working VC', type: 2 },
+        { name: '✂️│Editing Room', type: 2 }
+      ]
+    },
+    {
+      name: '🪐 AI PLATFORM',
+      channels: [
+        { name: '🤖│ai-updates', type: 0 },
+        { name: '💡│feature-requests', type: 0 },
+        { name: '🐛│bug-reports', type: 0 },
+        { name: '🎫│support', type: 0 },
+        { name: '💬│model-discussions', type: 0 },
+        { name: '🧩│prompt-sharing', type: 0 },
+        { name: '🛒│prompt-marketplace', type: 0 }
+      ]
+    },
+    {
+      name: '🔬 EXPERIMENTS',
+      channels: [
+        { name: '📰│ai-news', type: 0 },
+        { name: '🔄│workflow-sharing', type: 0 },
+        { name: '⚡│automation-builds', type: 0 },
+        { name: '🛠️│tool-recommendations', type: 0 },
+        { name: '⚙️│n8n-workflows', type: 0 },
+        { name: '🧠│advanced-prompts', type: 0 }
+      ]
+    },
+    {
+      name: '📈 GROWTH HUB',
+      channels: [
+        { name: '🎥│youtube-growth', type: 0 },
+        { name: '📱│short-form-strategies', type: 0 },
+        { name: '💰│monetization', type: 0 },
+        { name: '🤝│brand-deals', type: 0 },
+        { name: '🔍│seo-discussion', type: 0 },
+        { name: '📈│analytics-help', type: 0 }
+      ]
+    },
+    {
+      name: '💎 INSIDER CLUB',
+      channels: [
+        { name: '👑│exclusive-announcements', type: 0 },
+        { name: '💎│premium-prompts', type: 0 },
+        { name: '🔒│private-support', type: 0 },
+        { name: '⏰│office-hours', type: 0 },
+        { name: '🚀│early-access', type: 0 }
+      ]
+    },
+    {
+      name: '🎪 EVENTS',
+      channels: [
+        { name: '📢│event-announcements', type: 0 },
+        { name: '🏆│weekly-challenges', type: 0 },
+        { name: '⚔️│community-contests', type: 0 },
+        { name: '❓│ama-questions', type: 0 },
+        { name: '🎤│Stage Events', type: 2 }, 
+        { name: '🔥│Live Workshops', type: 2 }
+      ]
+    },
+    {
+      name: '⚙️ BOTS',
+      channels: [
+        { name: '🤖│bot-commands', type: 0 },
+        { name: '🎟️│create-ticket', type: 0 },
+        { name: '🧠│ai-generate', type: 0 },
+        { name: '🏆│leaderboard', type: 0 }
+      ]
+    },
+    {
+      name: '🛡️ STAFF ONLY',
+      channels: [
+        { name: '💬│staff-chat', type: 0 },
+        { name: '🪵│mod-logs', type: 0 },
+        { name: '🚨│report-center', type: 0 },
+        { name: '📋│staff-tasks', type: 0 },
+        { name: '📥│appeals', type: 0 },
+        { name: '👥│Staff VC', type: 2 }
+      ]
+    }
+  ];
+
+  for (const cat of categories) {
+    try {
+      const category = await guild.channels.create({
+        name: cat.name,
+        type: 4 // GuildCategory
+      });
+      for (const chan of cat.channels) {
+        await guild.channels.create({
+          name: chan.name,
+          type: chan.type,
+          parent: category.id
+        }).catch(err => console.log(`[Setup Server] Error creating channel ${chan.name}: ${err.message}`));
+      }
+    } catch (err) {
+      console.log(`[Setup Server] Error creating category ${cat.name}: ${err.message}`);
+    }
+  }
+
+  // Force trigger channels & guilds sync to DB
+  await syncGuildsAndChannels();
+
+  res.json({ success: true, message: 'Server layout setup completed successfully' });
 }));
 
 module.exports = router;

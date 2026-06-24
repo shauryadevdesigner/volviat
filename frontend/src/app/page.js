@@ -33,6 +33,7 @@ export default function Home() {
   const [allLogs, setAllLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [settingUp, setSettingUp] = useState(false);
   
   // Form State
   const [editingId, setEditingId] = useState(null);
@@ -108,6 +109,33 @@ export default function Home() {
       console.error('Sync failed:', error);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSetupServer = async () => {
+    if (!selectedServerId) return;
+    if (!confirm("WARNING: This will delete existing channels in the selected server to build the fresh ecosystem. Are you sure you want to proceed?")) {
+      return;
+    }
+    setSettingUp(true);
+    try {
+      const res = await fetch(`${API_BASE}/setup-server`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: selectedServerId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Ecosystem layout deployed successfully! Check your Discord server.");
+        await fetchInitialData();
+      } else {
+        alert("Setup failed: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Setup server failed:", error);
+      alert("Error: " + error.message);
+    } finally {
+      setSettingUp(false);
     }
   };
 
@@ -533,6 +561,34 @@ export default function Home() {
                     >
                       View All Audit Logs
                     </button>
+                  </div>
+
+                  <div className="glass-panel p-6 border-l-2 border-l-cyan-400">
+                    <h3 className="font-bold text-xs text-white flex items-center gap-1.5">
+                      <ServerIcon size={14} className="text-cyan-400" /> Server Setup Utility
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-2.5 leading-relaxed font-medium">
+                      Select a server and automatically deploy the premium, startup-style ecosystem layout (categories, text/voice channels, and custom roles).
+                    </p>
+                    <div className="mt-4 flex flex-col gap-3">
+                      <select 
+                        value={selectedServerId}
+                        onChange={(e) => setSelectedServerId(e.target.value)}
+                        className="form-input w-full bg-[#05050b] text-xs font-semibold text-white cursor-pointer"
+                      >
+                        <option value="">-- Select Discord Server --</option>
+                        {servers.map(s => (
+                          <option key={s.guildId} value={s.guildId}>{s.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={handleSetupServer}
+                        disabled={settingUp || !selectedServerId}
+                        className="btn btn-primary w-full text-xs font-bold rounded-full py-2.5"
+                      >
+                        {settingUp ? 'Setting up server...' : '⚡ Deploy Ecosystem Layout'}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="glass-panel p-6 bg-[#5865F2]/5 border-l-2 border-l-[#5865F2]">
